@@ -1,260 +1,157 @@
-import requests
 import re
 import telebot
 from decouple import config
 from telebot import types
-import json
-from botrequests import lowprice
-
-# from botrequests import highprice
-# from botrequests import bestdeal
-# from botrequests import history
+from manager import Manager, User
+from dictionary import dictionary, emoji
+import traceback
+from time import time, ctime, sleep
 
 bot = telebot.TeleBot(config('TOKEN'))
-
-low_emodji = '\U00002198'
-high_emodji = '\U00002197'
-best_emodji = '\U00002705'
-history_emodji = '\U0001F4D3'
-head_emodji = '\U0001F3E8'
-point_emodji = '\U0001F4CC'
-
-
-class Server:
-    """Класс сервер. Выполняет запросы, хранит полученную информацию, выполняет извелечение данных."""
-
-    city_url = 'https://hotels4.p.rapidapi.com/locations/search'
-    hotel_url = 'https://hotels4.p.rapidapi.com/properties/list'
-    photo_url = 'https://hotels4.p.rapidapi.com/properties/get-hotel-photos'
-
-    headers = {
-        'x-rapidapi-host': config("RAPIDHOST"),
-        'x-rapidapi-key': config("RAPIDAPIKEY")
-    }
-
-    def __init__(self):
-        self.cities_data = dict()
-        self.hotels_data = dict()
-        self.photos_data = list()
-        self.address = None
-        self.distance = None
-
-    def get_city(self, message):
-        Params.check_lang(message)  # устанавливаем язык по умолчанию, если он не не был задан ранее
-        Params.check_cur(message)
-        querystring = {"query": message.text, "locale": "{}_{}".format(user.lang, user.lang.upper())}
-        response = requests.request("GET", self.city_url, headers=self.headers, params=querystring)
-        data = json.loads(response.text)
-        self.cities_data = {city['name']: city['destinationId'] for city in data['suggestions'][0]['entities']}
-        return self.cities_data
-
-    @property
-    def get_hotels(self):
-        self.hotels_data = user.sorted_func(user_city_id=user.city_id, lang=user.lang, cur=user.cur,
-                                            number_of_options=user.number_of_options)
-        print(self.hotels_data)
-        return self.hotels_data
-
-    def get_photos(self, hotel_id, text):
-        querystring = {"id": "{}".format(hotel_id)}
-        response = requests.request("GET", self.photo_url, headers=self.headers, params=querystring)
-        data = json.loads(response.text)
-        data = data["hotelImages"][:user.number_of_photo]
-        self.photos_data = list()
-        for photo in data:
-            if not self.photos_data:
-                self.photos_data.append(
-                    types.InputMediaPhoto(caption=text, media=photo['baseUrl'].replace('{size}', 'w'),
-                                          parse_mode='MarkdownV2'))
-            else:
-                self.photos_data.append(types.InputMediaPhoto(media=photo['baseUrl'].replace('{size}', 'w')))
-        return self.photos_data
-
-    def get_address(self, data):
-        self.address = ', '.join([data['address']['streetAddress'], data['address']['locality'],
-                                  data['address']['countryName'], data['address']['postalCode']])
-        return self.address
-
-    def get_distance(self, data):
-        self.distance = ', '.join(['\n{label}: {distance}'.format(label=info['label'], distance=info['distance'])
-                                   for info in data['landmarks']])
-        return self.distance
-
-
-class UserChoice:
-    def __init__(self):
-        self.city_id = None
-        self.city_name = None  # TODO
-        self.number_of_options = None  # count_hotels
-        self.needed_photo = None
-        self.number_of_photo = None  # count_photos
-        self.cur = None
-        self.lang = None
-        self.sorted_func = None
-        self.flag_advanced_question = False
-        self.min_price = None  # TODO
-        self.max_price = None  # TODO
-        self.min_distance = None  # TODO
-        self.max_distance = None  # TODO
-        self.history = None  # TODO
-
-
-class Params:
-    @staticmethod
-    def check_lang(message):
-        if user.lang is None:
-            user.lang = Params.set_lang(message.text)
-
-    @staticmethod
-    def check_cur(message):
-        if user.cur is None:
-            user.cur = Params.set_cur(message.text)
-
-    @staticmethod
-    def set_lang(text):
-        if bool(re.search(r'[А-Яа-я]', text)):
-            return 'ru'
-        return 'en'
-
-    @staticmethod
-    def set_cur(text):
-        if bool(re.search(r'[А-Яа-я]', text)):
-            return 'RUB'
-        return 'USD'
+manager = Manager()
 
 
 @bot.message_handler(regexp=r'.*[Пп]ривет.*')
-@bot.message_handler(commands=['start', 'hello_world'])
+@bot.message_handler(commands=['start', 'hello_world', 'help'])
 def start_message(message):
-    bot.send_message(message.chat.id, 'Помоги мне подобрать для тебя самое выгодное предложение (выбери команду): '
-                                      '\n\n {} /lowprice - Узнать топ самых дешёвых отелей в городе'
-                                      '\n\n {} /highprice - Узнать топ самых дорогих отелей в городе'
-                                      '\n\n {} /bestdeal - Узнать топ отелей, наиболее подходящих по цене '
-                                      'и расположению от центра (самые дешёвые и находятся ближе всего к центру)'
-                                      '\n\n {} /history - Узнать историю поиска отелей'.format(low_emodji,
-                                                                                               high_emodji,
-                                                                                               best_emodji,
-                                                                                               history_emodji))
+    bot.send_message(chat_id=message.chat.id, text=dictionary['started_message'][manager.lang].format(
+        emoji['low'], emoji['high'], emoji['best'], emoji['history'], emoji['settings']))
 
 
-@bot.message_handler(commands=['lowprice'])
-def set_sorted_func(message):
-    ask_for_city(message, lowprice.lowprice)
+@bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal', 'history'])
+def initial(message):
+    manager.user = User(user_id=message.from_user.id, chat_id=message.chat.id)
+    manager.set_sorted_func(func=re.search(r'\w+', message.text).group())
+    bot.send_message(chat_id=message.chat.id, text=dictionary['ask_for_city'][manager.lang])
+    bot.register_next_step_handler(message=message, callback=search_city)
 
 
-# @bot.message_handler(commands=['highprice'])
-# def set_sorted_func(message):
-#     ask_for_city(message, highprice.highprice)
+@bot.message_handler(commands='settings')
+def set_settings(message):
+    lang_keyboard = types.InlineKeyboardMarkup(row_width=2)
+    cur_keyboard = types.InlineKeyboardMarkup(row_width=3)
+    lang_buttons = [types.InlineKeyboardButton(text=text, callback_data=data)
+                    for text, data in (('RU', 'ru_RU'), ('EN', 'en_US'))]
+    cur_buttons = [types.InlineKeyboardButton(text=text, callback_data=text)
+                   for text in ('RUB', 'USD', 'EUR')]
+    lang_keyboard.add(*lang_buttons)
+    cur_keyboard.add(*cur_buttons)
+    bot.send_message(chat_id=message.chat.id, text=dictionary['set_lang'][manager.lang], reply_markup=lang_keyboard)
+    bot.send_message(chat_id=message.chat.id, text=dictionary['set_cur'][manager.lang], reply_markup=cur_keyboard)
 
 
-# @bot.message_handler(commands=['bestdeal'])
-# def set_sorted_func(message):
-#     ask_for_city(message, bestdeal.bestdeal)
+@bot.callback_query_handler(func=lambda call: any(key in call.message.text for key in dictionary['set_lang'].values()))
+def set_lang(call):
+    manager.set_lang(call.data)
+    bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
 
 
-# @bot.message_handler(commands=['history'])
-# def set_sorted_func(message):
-#     pass
-#     # user.sorted_func = lowprice.lowprice  # TODO
+@bot.callback_query_handler(func=lambda call: any(key in call.message.text for key in dictionary['set_cur'].values()))
+def set_cur(call):
+    manager.set_cur(call.data)
+    bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
 
 
-def ask_for_city(message, func):
-    global user, server, params
-    user = UserChoice()
-    server = Server()
-    params = Params()
-    user.sorted_func = func
-    bot.send_message(message.chat.id, 'В каком городе будем искать?')
-    bot.register_next_step_handler(message, send_city_list)
+def search_city(message):
+    manager.check_params(message)
+    temp = bot.send_message(chat_id=message.chat.id, text=dictionary['searching'][manager.lang], parse_mode='HTML')
+    city_list = manager.get_city_list(message)
+    keyboard = types.InlineKeyboardMarkup()
+    if not city_list:
+        bot.edit_message_text(chat_id=message.chat.id, message_id=temp.id, text=dictionary['error'][manager.lang],
+                              parse_mode='HTML')
+    else:
+        for city_name, city_id in city_list.items():
+            keyboard.add(types.InlineKeyboardButton(text=city_name, callback_data=city_id))
+        bot.edit_message_text(chat_id=message.chat.id, message_id=temp.id,
+                              text=dictionary['city_results'][manager.lang], reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda call: "Предлагаю для поиска следующие варианты" in call.message.text)
-def start_message(call):
-    user.city_id = call.data
-    if user.flag_advanced_question:
+@bot.callback_query_handler(func=lambda call: any(key in call.message.text
+                                                  for key in dictionary['city_results'].values()))
+def set_city_id(call):
+    manager.city_id = call.data
+    if manager.flag_advanced_question:
         pass  # TODO
     else:
-        bot.edit_message_text(text=call.data, chat_id=call.message.chat.id, message_id=call.message.id,
-                              reply_markup=None)
         bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
         ask_for_hotels_value(call.message)
 
 
-@bot.callback_query_handler(func=lambda call: "Необходимость загрузки и вывода фотографий" in call.message.text)
-def start_message(call):
-    if user.flag_advanced_question:
-        pass  # TODO
-    else:
-        bot.edit_message_text(text="Наличие фото - {}".format(call.data), chat_id=call.message.chat.id,
-                              message_id=call.message.id, reply_markup=None)
-        if call.data == "Да":
-            user.needed_photo = True
-            number_of_photo(call.message)
-        else:
-            result(call.message)
-
-
-def send_city_list(message):
-    # TODO проверка сообщения, если не город > предупредить и снова ask_for_city()
-    keyboard = types.InlineKeyboardMarkup()
-    for city_name, city_id in server.get_city(message).items():
-        keyboard.add(types.InlineKeyboardButton(city_name, callback_data=city_id))
-
-    bot.send_message(message.chat.id, text='Предлагаю для поиска следующие варианты'
-                                           '\n(нажми на интересующий вариант):', reply_markup=keyboard)
-
-
-def price_range(message):
-    pass  # TODO
-    bot.register_next_step_handler(message, distance_range)
-
-
-def distance_range(message):
-    pass  # TODO
-    bot.register_next_step_handler(message, ask_for_hotels_value)
-
-
 def ask_for_hotels_value(message):
-    bot.send_message(message.chat.id, 'Количество отелей для вывода (не более 10):', message.text)
+    bot.send_message(chat_id=message.chat.id, text=dictionary['hotels_value'][manager.lang])
     bot.register_next_step_handler(message, photo_needed)
 
 
 def photo_needed(message):
-    # TODO проверка на количество отелей, если нет > number_of_options()
-    user.number_of_options = int(message.text)
-    keyboard = types.InlineKeyboardMarkup()
-    keyboard.add(types.InlineKeyboardButton('Да', callback_data='Да'))
-    keyboard.add(types.InlineKeyboardButton('Нет!', callback_data='Нет'))
-    bot.send_message(message.chat.id, text='Необходимость загрузки и вывода фотографий для каждого отеля (“Да/Нет”)',
-                     reply_markup=keyboard)
+    try:
+        manager.hotels_value = int(message.text)
+    except ValueError:
+        bot.send_message(chat_id=message.chat.id, text=dictionary['value_error'][manager.lang])
+        bot.register_next_step_handler(message=message, callback=photo_needed)
+    else:
+        manager.hotels_value = int(message.text)
+        keyboard = types.InlineKeyboardMarkup()
+        [keyboard.add(types.InlineKeyboardButton(x, callback_data=x)) for x in [dictionary['pos'][manager.lang],
+                                                                                dictionary['neg'][manager.lang]]]
+        bot.send_message(message.chat.id, text=dictionary['photo_needed'][manager.lang],
+                         reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: dictionary['photo_needed'][manager.lang] in call.message.text)
+def set_photo_needed(call):
+    if manager.flag_advanced_question:
+        pass  # TODO реализация дополнительных запросов
+    else:
+        bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
+        if any(call.data in answer for answer in dictionary['pos'].values()):
+            manager.user.needed_photo = True
+            number_of_photo(call.message)
+        else:
+            manager.user.needed_photo = False
+            result(call.message)
 
 
 def number_of_photo(message):
-    bot.send_message(message.chat.id, 'Введите количество фото для отображения (не более 10):', message.text)
+    bot.send_message(chat_id=message.chat.id, text=dictionary['photos_value'][manager.lang])
     bot.register_next_step_handler(message, result)
 
 
 def result(message):
-    if message.text.isdigit():
-        user.number_of_photo = int(message.text)
-    hotels_dict = server.get_hotels
-    for data in hotels_dict.values():
-        address = server.get_address(data)
-        distance = server.get_distance(data)
-        text = "\n{head}{name}{head}" \
-               "\n{point}{address}" \
-               "\n{point}Расстояние до достопримечательностей: {distance}" \
-               "\n{point}Цена: {price}" \
-               "\n[Отзывы]({url_1})" \
-               "\n[Страница на hotels.com]({url_2))".format(name=data['name'], address=address, distance=distance,
-                                              price=data['price'], head=head_emodji, point=point_emodji,
-                                              url_1=3, url_2=4)
-        if user.needed_photo:
-            photo_list = server.get_photos(data['id'], text)
-            bot.send_media_group(chat_id=message.chat.id, media=photo_list)
-        else:
-            bot.send_message(message.chat.id, text)
+    try:
+        if manager.user.needed_photo:
+            manager.photos_value = int(message.text)
+    except ValueError:
+        bot.send_message(chat_id=message.chat.id, text=dictionary['value_error'][manager.lang])
+        bot.register_next_step_handler(message=message, callback=result)
+    else:
+        temp = bot.send_message(chat_id=message.chat.id, text=dictionary['searching'][manager.lang])
+        hotels_dict, search_link = manager.get_hotels()
+        bot.edit_message_text(chat_id=message.chat.id, message_id=temp.id,
+                              text=dictionary['ready_to_result'][manager.lang])
+        if hotels_dict:
+            for data in hotels_dict.values():
+                text = dictionary['main_results'][manager.lang].format(
+                    name=data['name'], address=manager.get_address(data), distance=manager.get_landmarks(data),
+                    price=data['price'], e_hotel=emoji['hotel'], e_address=emoji['address'], e_dist=emoji['landmarks'],
+                    e_price=emoji['price'], e_link=emoji['link'], link='https://hotels.com/ho' + str(data['id']),
+                    address_link='https://www.google.ru/maps/place/'+data['coordinate'])
+                if manager.user.needed_photo:
+                    photo_list = manager.get_photos(data['id'], text)
+                    bot.send_media_group(chat_id=message.chat.id, media=photo_list)
+                else:
+                    bot.send_message(message.chat.id, text, parse_mode='HTML')
+            bot.send_message(chat_id=message.chat.id,
+                             text=dictionary['additionally'][manager.lang].format(link=search_link),
+                             parse_mode='MarkdownV2')
 
 
-if __name__ == '__main__':
-    bot.polling()
+while True:
+    try:
+        bot.polling()
+    except BaseException as exc:
+        with open('errors_log.txt', 'a') as file:
+            file.write('\n'.join([ctime(time()), exc.__class__.__name__, traceback.format_exc(), '\n\n']))
+        re_message = bot.send_message(chat_id=manager.user.chat_id, text=dictionary['critical_error'][manager.lang])
+        sleep(2)
+        start_message(re_message)
