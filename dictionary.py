@@ -31,10 +31,6 @@ dictionary = {
         'ru_RU': 'Выполняю поиск...',
         'en_US': 'Searching...'
     },
-    'error': {
-        'ru_RU': 'К сожалению, что-то пошло не так...\nМожет попробуем начать всё сначала? /help',
-        'en_US': 'Unfortunately, something went wrong...\nCan we try to start all over again? /help'
-    },
     'ask_for_city': {
         'ru_RU': 'Какой город Вас интересует?',
         'en_US': 'Which city are you interested in?'
@@ -71,12 +67,12 @@ dictionary = {
         'ru_RU': "\n\n{e_hotel}{name}{e_hotel}"
                  "\n\n{e_address}<a href='{address_link}'>{address}</a>"
                  "\n\n{e_dist}Ориентиры: {distance}"
-                 "\n\n{e_price}Цена: {price}"
+                 "\n\n{e_price}Цена: {price} за одну ночь"
                  "\n\n{e_link}<a href='{link}'>Подробнее на hotels.com</a>",
         'en_US': "\n\n{e_hotel}{name}{e_hotel}"
                  "\n\n{e_address}<a href='{address_link}'>{address}</a>"
                  "\n\n{e_dist}Landmarks: {distance}"
-                 "\n\n{e_price}Price: {price}"
+                 "\n\n{e_price}Price: {price} per night"
                  "\n\n{e_link}<a href='{link}'>More на hotels.com</a>"
     },
     'additionally': {
@@ -92,5 +88,25 @@ dictionary = {
     'critical_error': {
         'ru_RU': 'Что-то пошло не так, перезагружаюсь...',
         'en_US': 'Something went wrong, restart...'
+    },
+    'range_error': {
+        'ru_RU': 'Необходимо ввести два целых положительных отличных друг от друга числа:',
+        'en_US': 'It is necessary to enter two positive integers that are different from each other:'
+    },
+    'ask_for_price_range': {
+        'ru_RU': 'Уточните ценовой диапазон ({cur}):'
+                 '\n(Например: "от 1000 до 2000", "1000-2000", "1000 2000")',
+        'en_US': 'Specify the price range ({cur}):'
+                 '\n(As example: "from 1000 to 2000", "1000-2000", "1000 2000")'
+    },
+    'ask_for_dist_range': {
+        'ru_RU': 'Уточните диапазон расстояния, на котором находится отель от центра (км):'
+                 '\n(Например: "от 1 до 3" / "1-3" / "1 3")',
+        'en_US': 'Specify the range of the distance at which the hotel is located from the center (mile)'
+                 '\n(As example: "from 1 to 3" / "1-3" / "1 3"'
+    },
+    'no_options': {
+        'ru_RU': 'По вашему запросу ничего не найдено...\n/help',
+        'en_US': 'Nothing was found for your query...\n/help'
     }
 }

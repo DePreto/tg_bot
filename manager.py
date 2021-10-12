@@ -1,29 +1,42 @@
-import requests
-import re
-import json
-from decouple import config
-from botrequests import lowprice, highprice, bestdeal, history
-from abc import ABC
+from botrequests import main_request, lowprice, highprice, bestdeal, history
 from telebot import types
+from params import Params
 import functools
 
 
 sorted_functions = {
     'lowprice': lowprice.lowprice,
-    'highprice': highprice,  # TODO
-    'bestdeal': bestdeal,  # TODO
+    'highprice': highprice.highprice,
+    'bestdeal': bestdeal.bestdeal,
     'history': history  # TODO
 }
 
 
-def registration(cls):  # TODO проверка на уже зарегистрированного пользователя (чтобы не обнулять настройки и историю поиска)
+def registration(cls):  # проверка на зарегистрированного пользователя (чтобы не обнулять настройки и историю поиска)
     @functools.wraps(cls)
     def wrapper(user_id, chat_id):
         if user_id in cls.users:
             return cls.users[user_id]
-        else:
-            return cls(user_id, chat_id)
+        return cls(user_id, chat_id)
     return wrapper
+
+
+@registration
+class User:
+    users = dict()
+
+    def __init__(self, user_id, chat_id):
+        self.id = user_id
+        self.chat_id = chat_id
+        self.city_id = None
+        self.city_name = None
+        self.hotels_value = None
+        self.needed_photo = None
+        self.photos_value = None
+        self.price_range = None
+        self.dist_range = None
+        self.history = None
+        self.users[self.id] = self
 
 
 class Manager:
@@ -38,7 +51,7 @@ class Manager:
         self.sorted_func = None
 
     def get_city_list(self, message):
-        self.city_list = Request.location_search(message)
+        self.city_list = main_request.Request.location_search(message)
         return self.city_list
 
     def check_params(self, message):
@@ -46,11 +59,11 @@ class Manager:
         Params.check_cur(self, message)  # устанавливаем валюту по умолчанию, если она не была задана ранее
 
     def get_hotels(self):
-        hotels_data = Request.hotels_search(self)
+        hotels_data = main_request.Request.hotels_search(self)
         return hotels_data
 
     def get_photos(self, hotel_id, text):
-        photos = Request.photos_search(self, hotel_id)
+        photos = main_request.Request.photos_search(self, hotel_id)
         result = list()
         for i_photo in photos:
             if not result:
@@ -69,12 +82,15 @@ class Manager:
         self.cur = cur
 
     def set_sorted_func(self, func):
+        if func == 'bestdeal':
+            self.flag_advanced_question = True
+        else:
+            self.flag_advanced_question = None
         self.sorted_func = sorted_functions[func]
 
     @staticmethod
     def get_address(data):
-        address = ', '.join([data['address']['streetAddress'], data['address']['locality'],
-                             data['address']['countryName'], data['address']['postalCode']])
+        address = ', '.join(list(filter(lambda x: isinstance(x, str) and len(x) > 2, list(data['address'].values()))))
         return address
 
     @staticmethod
@@ -82,6 +98,22 @@ class Manager:
         distance = ', '.join(['\n*{label}: {distance}'.format(label=info['label'], distance=info['distance'])
                               for info in data['landmarks']])
         return distance
+
+    @property
+    def price_range(self):
+        return self.user.price_range
+
+    @price_range.setter
+    def price_range(self, value):
+        self.user.price_range = value
+
+    @property
+    def dist_range(self):
+        return self.user.dist_range
+
+    @dist_range.setter
+    def dist_range(self, value):
+        self.user.dist_range = value
 
     @property
     def photos_value(self):
@@ -112,79 +144,3 @@ class Manager:
             raise ValueError
         else:
             self.user.hotels_value = value
-
-
-@registration
-class User:
-    users = dict()
-
-    def __init__(self, user_id, chat_id):
-        self.id = user_id
-        self.chat_id = chat_id
-        self.city_id = None
-        self.city_name = None
-        self.hotels_value = None
-        self.needed_photo = None
-        self.photos_value = None
-        self.history = None
-        self.users[self.id] = self
-
-
-class Request(ABC):
-    city_url = 'https://hotels4.p.rapidapi.com/locations/search'
-    hotel_url = 'https://hotels4.p.rapidapi.com/properties/list'
-    photo_url = 'https://hotels4.p.rapidapi.com/properties/get-hotel-photos'
-
-    headers = {
-        'x-rapidapi-host': config("RAPIDHOST"),
-        'x-rapidapi-key': config("RAPIDAPIKEY")
-    }
-
-    @classmethod
-    def location_search(cls, message):
-        querystring = {"query": message.text, "locale": "{}".format(Params.set_lang(message.text))}
-        response = requests.request("GET", cls.city_url, headers=cls.headers, params=querystring)
-        data = json.loads(response.text)
-        print(data)
-        city_list = {', '.join((city['name'], city['caption'][city['caption'].rindex(' ')+1:])): city['destinationId']
-                     for city in data['suggestions'][0]['entities']}
-        return city_list
-
-    @classmethod
-    def hotels_search(cls, manager):
-        hotels_data = manager.sorted_func(user_city_id=manager.city_id, lang=manager.lang, cur=manager.cur,
-                                          hotels_value=manager.hotels_value, hotel_url=cls.hotel_url,
-                                          headers=cls.headers)
-        return hotels_data
-
-    @classmethod
-    def photos_search(cls, manager, hotel_id):
-        querystring = {"id": "{}".format(hotel_id)}
-        response = requests.request("GET", cls.photo_url, headers=cls.headers, params=querystring)
-        data = json.loads(response.text)
-        photos_address = data["hotelImages"][:manager.photos_value]
-        return photos_address
-
-
-class Params(ABC):
-    @staticmethod
-    def check_lang(manager, message):
-        if manager.lang_flag is False:
-            manager.lang = Params.set_lang(message.text)
-
-    @staticmethod
-    def check_cur(manager, message):
-        if manager.cur_flag is False:
-            manager.cur = Params.set_cur(message.text)
-
-    @staticmethod
-    def set_lang(text):
-        if bool(re.search(r'[А-Яа-я]', text)):
-            return 'ru_RU'
-        return 'en_US'
-
-    @staticmethod
-    def set_cur(text):
-        if bool(re.search(r'[А-Яа-я]', text)):
-            return 'RUB'
-        return 'USD'
