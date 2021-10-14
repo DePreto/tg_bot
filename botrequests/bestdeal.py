@@ -31,7 +31,6 @@ def bestdeal(user_city_id, lang, cur, hotels_value, hotel_url, headers, price_ra
                     hotels_list.append(i_hotel)
 
             querystring['pageNumber'] = str(int(querystring['pageNumber']) + 1)
-            print(querystring['pageNumber'])
 
         except ValueError:
             break

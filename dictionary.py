@@ -67,12 +67,12 @@ dictionary = {
         'ru_RU': "\n\n{e_hotel}{name}{e_hotel}"
                  "\n\n{e_address}<a href='{address_link}'>{address}</a>"
                  "\n\n{e_dist}Ориентиры: {distance}"
-                 "\n\n{e_price}Цена: {price} за одну ночь"
+                 "\n\n{e_price}Цена за ночь: {price}"
                  "\n\n{e_link}<a href='{link}'>Подробнее на hotels.com</a>",
         'en_US': "\n\n{e_hotel}{name}{e_hotel}"
                  "\n\n{e_address}<a href='{address_link}'>{address}</a>"
                  "\n\n{e_dist}Landmarks: {distance}"
-                 "\n\n{e_price}Price: {price} per night"
+                 "\n\n{e_price}Price per night: {price}"
                  "\n\n{e_link}<a href='{link}'>More на hotels.com</a>"
     },
     'additionally': {
@@ -108,5 +108,13 @@ dictionary = {
     'no_options': {
         'ru_RU': 'По вашему запросу ничего не найдено...\n/help',
         'en_US': 'Nothing was found for your query...\n/help'
+    },
+    'operations_for_history': {
+        'ru_RU': ('Очистить', 'Скрыть'),
+        'en_US': ('Clear', 'Hide')
+    },
+    'clear_history': {
+        'ru_RU': 'Ваша история поиска пуста!',
+        'en_US': 'Your search history is empty'
     }
 }

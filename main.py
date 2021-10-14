@@ -19,12 +19,44 @@ def start_message(message):
         emoji['low'], emoji['high'], emoji['best'], emoji['history'], emoji['settings']))
 
 
-@bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal', 'history'])
+@bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal'])
 def initial(message):
     manager.user = User(user_id=message.from_user.id, chat_id=message.chat.id)
     manager.set_sorted_func(func=re.search(r'\w+', message.text).group())
     bot.send_message(chat_id=message.chat.id, text=dictionary['ask_for_city'][manager.lang])
     bot.register_next_step_handler(message=message, callback=search_city)
+
+
+@bot.message_handler(commands=['history'])
+def get_history(message):
+    history = manager.get_history(message.chat.id)
+    if history:
+        message_list = list()
+        for i_query, i_hotels in history.items():
+            temp = bot.send_message(chat_id=message.chat.id, text='{func}\n\n{hotels}'.format(
+                func=i_query, hotels='\n'.join(i_hotels)
+            ), parse_mode='HTML', disable_web_page_preview=True)
+            message_list.append(temp)
+        else:
+            manager.message_list = message_list
+            keyword = types.InlineKeyboardMarkup(row_width=2)
+            buttons = [types.InlineKeyboardButton(text=text, callback_data=text)
+                       for text in dictionary['operations_for_history'][manager.lang]]
+            keyword.add(*buttons)
+            bot.edit_message_reply_markup(chat_id=message_list[-1].chat.id, message_id=message_list[-1].id,
+                                          reply_markup=keyword)
+
+    else:
+        bot.send_message(chat_id=message.chat.id, text='Ваша история пуста!')
+
+
+@bot.callback_query_handler(func=lambda call: any(key in call.message.text for key in
+                                                  ['lowprice', 'highprice', 'bestdeal']))
+def operation_for_history(call):
+    if call.data in [value[0] for value in dictionary['operations_for_history'].values()]:
+        manager.clear_history(call.message.chat.id)
+    for i_message in manager.message_list:
+        bot.delete_message(chat_id=i_message.chat.id, message_id=i_message.id)
 
 
 @bot.message_handler(commands='settings')
@@ -148,7 +180,8 @@ def result(message):
         bot.register_next_step_handler(message=message, callback=result)
     else:
         temp = bot.send_message(chat_id=message.chat.id, text=dictionary['searching'][manager.lang])
-        hotels_dict, search_link = manager.get_hotels()
+
+        hotels_dict, search_link = manager.get_hotels(user_id=message.chat.id)
         if hotels_dict:
             bot.edit_message_text(chat_id=message.chat.id, message_id=temp.id,
                                   text=dictionary['ready_to_result'][manager.lang])
@@ -165,9 +198,9 @@ def result(message):
                     photo_list = manager.get_photos(data['id'], text)
                     bot.send_media_group(chat_id=message.chat.id, media=photo_list)
                 else:
-                    bot.send_message(message.chat.id, text, parse_mode='HTML')
+                    bot.send_message(message.chat.id, text, parse_mode='HTML', disable_web_page_preview=True)
             bot.send_message(chat_id=message.chat.id, text=dictionary['additionally'][manager.lang].format(
-                    link=search_link), parse_mode='MarkdownV2')
+                    link=search_link), parse_mode='MarkdownV2', disable_web_page_preview=True)
         else:
             bot.edit_message_text(chat_id=message.chat.id, message_id=temp.id,
                                   text=dictionary['no_options'][manager.lang])
@@ -176,7 +209,7 @@ def result(message):
 while True:
     try:
         bot.polling()
-    except BaseException as exc:
+    except Exception as exc:
         with open('errors_log.txt', 'a') as file:
             file.write('\n'.join([ctime(time()), exc.__class__.__name__, traceback.format_exc(), '\n\n']))
         re_message = bot.send_message(chat_id=manager.user.chat_id, text=dictionary['critical_error'][manager.lang])

@@ -49,6 +49,7 @@ class Manager:
         self.city_list = None
         self.flag_advanced_question = None
         self.sorted_func = None
+        self.message_list = None
 
     def get_city_list(self, message):
         self.city_list = main_request.Request.location_search(message)
@@ -58,7 +59,8 @@ class Manager:
         Params.check_lang(self, message)  # устанавливаем язык по умолчанию, если он не не был задан ранее
         Params.check_cur(self, message)  # устанавливаем валюту по умолчанию, если она не была задана ранее
 
-    def get_hotels(self):
+    @history.history
+    def get_hotels(self, user_id):
         hotels_data = main_request.Request.hotels_search(self)
         return hotels_data
 
@@ -87,6 +89,15 @@ class Manager:
         else:
             self.flag_advanced_question = None
         self.sorted_func = sorted_functions[func]
+
+    @staticmethod
+    def get_history(user_id):
+        print(user_id)
+        return history.history_data.get(user_id, None)
+
+    @staticmethod
+    def clear_history(user_id):
+        history.history_data[user_id] = dict()
 
     @staticmethod
     def get_address(data):
