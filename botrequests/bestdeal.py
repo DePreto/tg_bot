@@ -36,7 +36,8 @@ def bestdeal(user_city_id, lang, cur, hotels_value, hotel_url, headers, price_ra
             break
 
     hotels_dict = {hotel['name']: {'id': hotel['id'], 'name': hotel['name'], 'address': hotel['address'],
-                                   'landmarks': hotel['landmarks'], 'price': hotel['ratePlan']['price']['current'],
+                                   'landmarks': hotel['landmarks'], 'price': hotel['ratePlan']['price'].get('current')
+                                   if hotel.get('ratePlan', None) else '-',
                                    'coordinate': '+'.join(map(str, hotel['coordinate'].values()))}
                    for hotel in hotels_list}
 

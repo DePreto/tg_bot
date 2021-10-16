@@ -1,157 +1,239 @@
 from botrequests import main_request, lowprice, highprice, bestdeal, history
 from telebot import types
 from params import Params
-import functools
-
+import json
 
 sorted_functions = {
     'lowprice': lowprice.lowprice,
     'highprice': highprice.highprice,
     'bestdeal': bestdeal.bestdeal,
-    'history': history  # TODO
+}
+
+data = {
+    'city_list': None,
+    'city_id': None,
+    'city_name': None,
+    'hotels_value': None,
+    'needed_photo': None,
+    'photos_value': None,
+    'price_range': None,
+    'dist_range': None,
+    'history': dict(),
+    'lang': 'ru_RU',
+    'lang_flag': False,
+    'cur': None,
+    'cur_flag': False,
+    'flag_advanced_question': None,
+    'sorted_func': None,
+    'del_message_list': dict()
 }
 
 
-def registration(cls):  # проверка на зарегистрированного пользователя (чтобы не обнулять настройки и историю поиска)
-    @functools.wraps(cls)
-    def wrapper(user_id, chat_id):
-        if user_id in cls.users:
-            return cls.users[user_id]
-        return cls(user_id, chat_id)
-    return wrapper
+def write_data(user_id, value, key):
+    i_data = read_data(user_id)
+    with open('database\\' + str(user_id) + '.json', 'w') as file:
+        i_data[key] = value
+        json.dump(i_data, file, indent=4)
 
 
-@registration
-class User:
-    users = dict()
-
-    def __init__(self, user_id, chat_id):
-        self.id = user_id
-        self.chat_id = chat_id
-        self.city_id = None
-        self.city_name = None
-        self.hotels_value = None
-        self.needed_photo = None
-        self.photos_value = None
-        self.price_range = None
-        self.dist_range = None
-        self.history = None
-        self.users[self.id] = self
+def read_data(user_id):
+    try:
+        with open('database\\' + str(user_id) + '.json', 'r') as file:
+            i_data = json.load(file)
+    except FileNotFoundError:
+        i_data = data
+        with open('database\\' + str(user_id) + '.json', 'w') as file:
+            json.dump(i_data, file, indent=4)
+    return i_data
 
 
-class Manager:
-    def __init__(self):
-        self.user = None
-        self.lang = 'ru_RU'
-        self.lang_flag = False
-        self.cur = 'RUB'
-        self.cur_flag = False
-        self.city_list = None
-        self.flag_advanced_question = None
-        self.sorted_func = None
-        self.message_list = None
+def flag_advanced_question(chat_id):
+    return read_data(user_id=chat_id)['flag_advanced_question']
 
-    def get_city_list(self, message):
-        self.city_list = main_request.Request.location_search(message)
-        return self.city_list
 
-    def check_params(self, message):
-        Params.check_lang(self, message)  # устанавливаем язык по умолчанию, если он не не был задан ранее
-        Params.check_cur(self, message)  # устанавливаем валюту по умолчанию, если она не была задана ранее
+def set_message_list(chat_id, i_key, i_value):
+    message_list = read_data(user_id=chat_id)['del_message_list']
+    message_list[i_key] = i_value
+    write_data(user_id=chat_id, value=message_list, key='del_message_list')
 
-    @history.history
-    def get_hotels(self, user_id):
-        hotels_data = main_request.Request.hotels_search(self)
-        return hotels_data
 
-    def get_photos(self, hotel_id, text):
-        photos = main_request.Request.photos_search(self, hotel_id)
-        result = list()
-        for i_photo in photos:
-            if not result:
-                result.append(types.InputMediaPhoto(caption=text, media=i_photo['baseUrl'].replace('{size}', 'w'),
-                                                    parse_mode='HTML'))
-            else:
-                result.append(types.InputMediaPhoto(media=i_photo['baseUrl'].replace('{size}', 'w')))
-        return result
+def get_message_list(chat_id, message_id):
+    message_data = read_data(user_id=chat_id)['del_message_list']
+    message_list = message_data.pop(message_id)
+    write_data(user_id=chat_id, value=message_data, key='del_message_list')
+    return message_list
 
-    def set_lang(self, lang):
-        self.lang_flag = True
-        self.lang = lang
 
-    def set_cur(self, cur):
-        self.cur_flag = True
-        self.cur = cur
+def get_city_list(message):
+    city_list = main_request.Request.location_search(message)
+    write_data(message.chat.id, value=city_list, key='city_list')
+    return city_list
 
-    def set_sorted_func(self, func):
-        if func == 'bestdeal':
-            self.flag_advanced_question = True
+
+def get_hotels(user_id):
+    i_data = read_data(user_id)
+    sorted_func = sorted_functions[i_data['sorted_func']]
+    hotels_data = main_request.Request.hotels_search(i_data, sorted_func)
+    key, value = history.history(hotels_data, i_data)
+    i_history = read_data(user_id)['history']
+    i_history[key] = value
+    write_data(user_id, value=i_history, key='history')
+    return hotels_data
+
+
+def get_photos(user_id, hotel_id, text):
+    i_data = read_data(user_id)
+    photos = main_request.Request.photos_search(i_data, hotel_id)
+    result = list()
+    for i_photo in photos:
+        if not result:
+            result.append(types.InputMediaPhoto(caption=text, media=i_photo['baseUrl'].replace('{size}', 'w'),
+                                                parse_mode='HTML'))
         else:
-            self.flag_advanced_question = None
-        self.sorted_func = sorted_functions[func]
+            result.append(types.InputMediaPhoto(media=i_photo['baseUrl'].replace('{size}', 'w')))
+    return result
 
-    @staticmethod
-    def get_history(user_id):
-        print(user_id)
-        return history.history_data.get(user_id, None)
 
-    @staticmethod
-    def clear_history(user_id):
-        history.history_data[user_id] = dict()
+def check_params(chat_id, text):
+    # устанавливаем язык и валюту по умолчанию, если он не был установлен пользователем
+    i_data = read_data(user_id=chat_id)
+    lang, cur = Params.check_lang(i_data, text), Params.check_cur(i_data, text)
+    if lang:
+        write_data(user_id=chat_id, value=lang, key='lang')
+    if cur:
+        write_data(user_id=chat_id, value=cur, key='cur')
 
-    @staticmethod
-    def get_address(data):
-        address = ', '.join(list(filter(lambda x: isinstance(x, str) and len(x) > 2, list(data['address'].values()))))
-        return address
 
-    @staticmethod
-    def get_landmarks(data):
-        distance = ', '.join(['\n*{label}: {distance}'.format(label=info['label'], distance=info['distance'])
-                              for info in data['landmarks']])
-        return distance
+def get_lang(chat_id):
+    return read_data(user_id=chat_id)['lang']
 
-    @property
-    def price_range(self):
-        return self.user.price_range
 
-    @price_range.setter
-    def price_range(self, value):
-        self.user.price_range = value
+def set_lang(chat_id, lang):
+    write_data(user_id=chat_id, value=lang, key='lang'), write_data(user_id=chat_id, value=True, key='lang_flag')
 
-    @property
-    def dist_range(self):
-        return self.user.dist_range
 
-    @dist_range.setter
-    def dist_range(self, value):
-        self.user.dist_range = value
+def get_cur(chat_id):
+    return read_data(user_id=chat_id)['cur']
 
-    @property
-    def photos_value(self):
-        return self.user.photos_value
 
-    @photos_value.setter
-    def photos_value(self, value):
-        if value > 10:
-            raise ValueError
-        else:
-            self.user.photos_value = value
+def set_cur(chat_id, cur):
+    write_data(user_id=chat_id, value=cur, key='cur'), write_data(user_id=chat_id, value=True, key='cur_flag')
 
-    @property
-    def city_id(self):
-        return self.user.city_id
 
-    @city_id.setter
-    def city_id(self, value):
-        self.user.city_id = value
+def get_needed_photo(chat_id):
+    return read_data(user_id=chat_id)['photo_needed']
 
-    @property
-    def hotels_value(self):
-        return self.user.hotels_value
 
-    @hotels_value.setter
-    def hotels_value(self, value):
-        if value > 10:
-            raise ValueError
-        else:
-            self.user.hotels_value = value
+def set_needed_photo(chat_id, value):
+    write_data(user_id=chat_id, value=value, key='photo_needed')
+
+
+def set_sorted_func(chat_id, func):
+    if func == 'bestdeal':
+        write_data(user_id=chat_id, value=True, key='flag_advanced_question')
+    else:
+        write_data(user_id=chat_id, value=None, key='flag_advanced_question')
+    write_data(user_id=chat_id, value=func, key='sorted_func')
+
+
+def get_history(user_id):
+    return read_data(user_id)['history']
+
+
+def clear_history(user_id):
+    write_data(user_id, value=dict(), key='history')
+
+
+def get_address(i_data):
+    return ', '.join(list(filter(lambda x: isinstance(x, str) and len(x) > 2, list(i_data['address'].values()))))
+
+
+def get_landmarks(i_data):
+    return ', '.join(['\n*{label}: {distance}'.format(label=info['label'], distance=info['distance'])
+                      for info in i_data['landmarks']])
+
+
+def get_price_range(chat_id):
+    return read_data(user_id=chat_id)['price_range']
+
+
+def set_price_range(chat_id, value):
+    write_data(user_id=chat_id, value=value, key='price_range')
+
+
+def get_dist_range(chat_id):
+    return read_data(user_id=chat_id)['dist_range']
+
+
+def set_dist_range(chat_id, value):
+    write_data(user_id=chat_id, value=value, key='dist_range')
+
+
+def get_photos_value(chat_id):
+    return read_data(user_id=chat_id)['photos_value']
+
+
+def set_photos_value(chat_id, value):
+    if value > 10:
+        raise ValueError
+    else:
+        write_data(user_id=chat_id, value=value, key='photos_value')
+
+
+def get_city_id(chat_id):
+    return read_data(user_id=chat_id)['city_id']
+
+
+def set_city_id(chat_id, value):
+    write_data(user_id=chat_id, value=value, key='city_id')
+    city_list = read_data(user_id=chat_id)['city_list']
+    for city_name, city_data in city_list.items():
+        if city_data == value:
+            write_data(user_id=chat_id, value=city_name, key='city_name')
+
+
+def get_hotels_value(chat_id):
+    return read_data(user_id=chat_id)['hotels_value']
+
+
+def set_hotels_value(chat_id, value):
+    if value > 10:
+        raise ValueError
+    else:
+        write_data(user_id=chat_id, value=value, key='hotels_value')
+
+# def registration(cls):  # проверка на зарегистрированного пользователя (чтобы не обнулять настройки и историю поиска)
+#     @functools.wraps(cls)
+#     def wrapper(user_id, chat_id):
+#         if user_id in cls.users:
+#             return cls.users[user_id]
+#         return cls(user_id, chat_id)
+#     return wrapper
+
+
+# def write_data_decorator(func):
+#     def wrapped(*args, **kwargs):
+#         key = func.__name__
+#         value, user_id = func(*args, **kwargs)
+#         with open('database\\' + user_id + '.json', 'w') as file:
+#             try:
+#                 i_data = json.load(file)
+#             except io.UnsupportedOperation:
+#                 i_data = data
+#
+#             i_data[key] = value
+#             json.dump(i_data, file)
+#
+#     return wrapped
+#
+#
+# def read_data_decorator(func):
+#     def wrapped(*args, **kwargs):
+#         key = func.__name__
+#         value, user_id = func(*args, **kwargs)
+#         with open('database\\' + user_id + '.json', 'r') as file:
+#             i_data = json.load(file)
+#             print(i_data)
+#         return i_data[key]
+#
+#     return wrapped

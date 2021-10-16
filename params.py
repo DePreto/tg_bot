@@ -4,14 +4,14 @@ import re
 
 class Params(ABC):
     @staticmethod
-    def check_lang(manager, message):
-        if manager.lang_flag is False:
-            manager.lang = Params.set_lang(message.text)
+    def check_lang(data, text):
+        if data['lang_flag'] is False:
+            return Params.set_lang(text)
 
     @staticmethod
-    def check_cur(manager, message):
-        if manager.cur_flag is False:
-            manager.cur = Params.set_cur(message.text)
+    def check_cur(data, text):
+        if data['cur_flag'] is False:
+            return Params.set_cur(text)
 
     @staticmethod
     def set_lang(text):

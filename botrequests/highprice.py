@@ -13,7 +13,8 @@ def highprice(user_city_id, lang, cur, hotels_value, hotel_url, headers, today, 
     hotels_list = data['data']['body']['searchResults']['results']
     print(len(hotels_list))
     hotels_dict = {hotel['name']: {'id': hotel['id'], 'name': hotel['name'], 'address': hotel['address'],
-                                   'landmarks': hotel['landmarks'], 'price': hotel['ratePlan']['price']['current'],
+                                   'landmarks': hotel['landmarks'], 'price': hotel['ratePlan']['price'].get('current')
+                                   if hotel.get('ratePlan', None) else '-',
                                    'coordinate': '+'.join(map(str, hotel['coordinate'].values()))}
                    for hotel in hotels_list}
     return hotels_dict, url
