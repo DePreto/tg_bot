@@ -27,7 +27,7 @@ dictionary = {
         'ru_RU': 'Установить валюту по умолчанию:',
         'en_US': 'Set the default currency:',
     },
-    'searching': {
+    'search': {
         'ru_RU': 'Выполняю поиск...',
         'en_US': 'Searching...'
     },
@@ -81,25 +81,25 @@ dictionary = {
         'en_US': "Didn't find a suitable option?\nMore hotels on your request\\: [view]({link})"
                  "\nDo you want to continue working with the bot? /help"
     },
-    'value_error': {
+    'val_err': {
         'ru_RU': 'Необходимо ввести целое число (не более 10):',
         'en_US': 'You must enter an integer (no more than 10):'
         },
-    'critical_error': {
+    'crt_err': {
         'ru_RU': 'Что-то пошло не так, перезагружаюсь...',
         'en_US': 'Something went wrong, restart...'
     },
-    'range_error': {
+    'rng_err': {
         'ru_RU': 'Необходимо ввести два целых положительных отличных друг от друга числа:',
         'en_US': 'It is necessary to enter two positive integers that are different from each other:'
     },
-    'ask_for_price_range': {
+    'ask_price': {
         'ru_RU': 'Уточните ценовой диапазон ({cur}):'
                  '\n(Например: "от 1000 до 2000", "1000-2000", "1000 2000")',
         'en_US': 'Specify the price range ({cur}):'
                  '\n(As example: "from 1000 to 2000", "1000-2000", "1000 2000")'
     },
-    'ask_for_dist_range': {
+    'ask_dist': {
         'ru_RU': 'Уточните диапазон расстояния, на котором находится отель от центра (км):'
                  '\n(Например: "от 1 до 3" / "1-3" / "1 3")',
         'en_US': 'Specify the range of the distance at which the hotel is located from the center (mile)'
@@ -113,7 +113,7 @@ dictionary = {
         'ru_RU': ('Очистить', 'Скрыть'),
         'en_US': ('Clear', 'Hide')
     },
-    'clear_history': {
+    'clr_history': {
         'ru_RU': 'Ваша история поиска пуста!',
         'en_US': 'Your search history is empty'
     }
