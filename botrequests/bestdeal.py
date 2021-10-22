@@ -45,7 +45,7 @@ def bestdeal(user_city_id: str, lang: str, cur: str, hotels_value: int, hotel_ur
                 elif float(distance) >= min(dist_range):
                     hotels_list.append(i_hotel)
 
-            querystring['pageNumber'] = str(int(querystring['pageNumber']) + 1)
+            querystring['pageNumber'] = str(int(querystring.get('pageNumber')) + 1)
 
         except ValueError:
             break

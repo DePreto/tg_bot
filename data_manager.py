@@ -152,10 +152,10 @@ def get_photos(user_id: int, hotel_id: int, text: str) -> List[types.InputMediaP
     result = list()
     for i_photo in photos:
         if not result:
-            result.append(types.InputMediaPhoto(caption=text, media=i_photo['baseUrl'].replace('{size}', 'y'),
+            result.append(types.InputMediaPhoto(caption=text, media=i_photo['baseUrl'].replace('{size}', 'w'),
                                                 parse_mode='HTML'))
         else:
-            result.append(types.InputMediaPhoto(media=i_photo['baseUrl'].replace('{size}', 'y')))
+            result.append(types.InputMediaPhoto(media=i_photo['baseUrl'].replace('{size}', 'w')))
     return result
 
 
@@ -184,7 +184,6 @@ def get_lang(chat_id: int) -> str:
 
 
 def set_lang(chat_id: int, lang: str) -> None:
-    print(type(chat_id))
     """
     Сеттер для установления языка пользователя.
     :param chat_id: chat id

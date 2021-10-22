@@ -1,6 +1,13 @@
-emoji = {'low': '\U00002198', 'high': '\U00002197', 'best': '\U00002705', 'history': '\U0001F4D3',
-         'hotel': '\U0001F3E8', 'address': '\U0001F4CD', 'price': '\U0001F4B0', 'landmarks': '\U0001F3AF',
-         'link': '\U0001F4CE', 'settings': '\U0001F527'}
+emoji = {'low': '\U00002198',
+         'high': '\U00002197',
+         'best': '\U00002705',
+         'history': '\U0001F4D3',
+         'hotel': '\U0001F3E8',
+         'address': '\U0001F4CD',
+         'price': '\U0001F4B0',
+         'landmarks': '\U0001F3AF',
+         'link': '\U0001F4CE',
+         'settings': '\U0001F527'}
 
 dictionary = {
     'started_message': {
@@ -115,6 +122,6 @@ dictionary = {
     },
     'clr_history': {
         'ru_RU': 'Ваша история поиска пуста!',
-        'en_US': 'Your search history is empty'
+        'en_US': 'Your search history is empty!'
     }
 }
