@@ -137,11 +137,11 @@ RAPIDAPIKEY=*YourRapidKey*
 ***
 ## Примеры использования
 
-Реализация команд `/bestdeal`, `/settings`, `/history`
+Реализация команд `/settings`, `/history`
 
 <p>
 
-<img src="https://i.imgur.com/tQm7uQE.gif" width="30%"> <img src="https://i.imgur.com/Sfun6Ad.gif" width="30%"> <img src="https://i.imgur.com/HYZ2Wke.gif" width="30%">
+<img src="https://i.imgur.com/Sfun6Ad.gif" width="30%"> <img src="https://i.imgur.com/HYZ2Wke.gif" width="30%">
 </p>
 
 ***
